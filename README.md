@@ -39,15 +39,16 @@ dashboard from the responses.
 - `src/store/` — session history and aggregates
 - `electron/` — desktop shell
 
-## Known issue
+## Connecting to the engine
 
-The engine has `flask-cors` installed but never calls `CORS(app)`, so browsers
-can't reach it cross-origin. Workarounds in place:
+The engine doesn't send CORS headers, so a browser can't call it cross-origin.
+Both targets already handle that:
 
 - **Desktop** — requests go through Electron's main process, so CORS never applies.
 - **Web dev** — `pnpm dev` proxies `/engine` to the API, making it same-origin.
 
-Adding `CORS(app)` to the Flask service removes the need for both.
+If `CORS(app)` gets enabled on the Flask side, neither path is needed and a
+production web build works directly too.
 
 ## Package
 
