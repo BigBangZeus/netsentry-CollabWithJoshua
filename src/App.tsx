@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { DEFAULT_ENDPOINT, getHealth, getServiceInfo } from './api/client'
-import type { ConnectionState, HealthResponse, ServiceInfo, Verdict } from './api/types'
+import { DEFAULT_ENDPOINT, EngineError, getHealth, getServiceInfo, predict } from './api/client'
+import type {
+  ConnectionState,
+  HealthResponse,
+  ServiceInfo,
+  Verdict,
+  VerdictSource,
+} from './api/types'
 import { DecisionAxis } from './components/DecisionAxis'
 import { DetailRail } from './components/DetailRail'
 import { InstrumentBar } from './components/InstrumentBar'
@@ -60,6 +66,7 @@ export default function App() {
   const [parsing, setParsing] = useState(false)
   const [parseError, setParseError] = useState<string | null>(null)
 
+  const [classifying, setClassifying] = useState(false)
   const [replayState, setReplayState] = useState<ReplayState>('idle')
   const [dispatched, setDispatched] = useState(0)
   const replayRef = useRef<ReplayController | null>(null)
@@ -178,6 +185,36 @@ export default function App() {
     replayRef.current?.setRate(rate)
   }, [rate])
 
+  /**
+   * Classify one record outside the replay. Selects the result immediately,
+   * which is the point: it puts a full engine response in the detail rail
+   * without processing a file first.
+   */
+  const classifyOne = useCallback(
+    async (features: Record<string, number>, source: VerdictSource) => {
+      setClassifying(true)
+      const startedAt = performance.now()
+
+      try {
+        const response = await predict(endpoint, features)
+        const verdict = session.recordVerdict(
+          null,
+          response,
+          performance.now() - startedAt,
+          source,
+        )
+        setSelectedId(verdict.id)
+      } catch (cause) {
+        const status = cause instanceof EngineError ? cause.status : null
+        const message = cause instanceof Error ? cause.message : 'Classification failed'
+        session.recordFailure(null, message, status, source)
+      } finally {
+        setClassifying(false)
+      }
+    },
+    [endpoint, session],
+  )
+
   const selected = useMemo(
     () => session.verdicts.find((verdict) => verdict.id === selectedId) ?? null,
     [session.verdicts, selectedId],
@@ -237,6 +274,8 @@ export default function App() {
             onPause={() => replayRef.current?.pause()}
             onResume={() => replayRef.current?.resume()}
             onStop={() => replayRef.current?.stop()}
+            onClassifyOne={(features, source) => void classifyOne(features, source)}
+            classifying={classifying}
             canRun={connection === 'online'}
           />
 

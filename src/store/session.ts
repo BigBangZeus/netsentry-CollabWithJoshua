@@ -81,12 +81,13 @@ export interface Session {
   verdicts: Verdict[]
   failures: VerdictFailure[]
   stats: SessionStats
+  /** Returns the stored verdict so a caller can select it straight away. */
   recordVerdict(
     row: FlowRow | null,
     response: PredictResponse,
     latencyMs: number,
     source: VerdictSource,
-  ): void
+  ): Verdict
   recordFailure(
     row: FlowRow | null,
     message: string,
@@ -162,6 +163,8 @@ export function useSession(): Session {
           agreed: current.agreed + (agrees ? 1 : 0),
         }
       })
+
+      return verdict
     },
     [],
   )
