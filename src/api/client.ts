@@ -9,7 +9,14 @@
 
 import { send } from './transport'
 import type { RequestInitLite } from './transport'
-import type { HealthResponse, ModelInfo, PredictResponse, ServiceInfo } from './types'
+import type {
+  BatchResponse,
+  BatchResult,
+  HealthResponse,
+  ModelInfo,
+  PredictResponse,
+  ServiceInfo,
+} from './types'
 
 export { DEFAULT_ENDPOINT, isDesktop } from './transport'
 
@@ -72,4 +79,60 @@ export function predict(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ features }),
   })
+}
+
+/**
+ * Classify many records in one request.
+ *
+ * Only available on engines that advertise `predict_batch` — check with
+ * `supportsBatch` before calling, and fall back to `predict` otherwise.
+ */
+export function predictBatch(
+  endpoint: string,
+  records: Record<string, number>[],
+): Promise<BatchResponse> {
+  return call<BatchResponse>(endpoint, '/api/predict/batch', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ records, include_type_probabilities: true }),
+  })
+}
+
+/** Whether this engine offers bulk classification. */
+export function supportsBatch(service: ServiceInfo | null): boolean {
+  return Boolean(service?.endpoints?.predict_batch)
+}
+
+/**
+ * Rebuild a full single-record response from a batch result.
+ *
+ * The batch endpoint hoists the fields that are identical for every record;
+ * the UI wants them per verdict, so they are folded back in here rather than
+ * making every component aware of two response shapes.
+ */
+export function expandBatchResult(
+  batch: BatchResponse,
+  result: BatchResult,
+): PredictResponse {
+  return {
+    prediction: result.prediction,
+    is_attack: result.is_attack,
+    confidence: result.confidence,
+    confidence_percent: result.confidence_percent,
+    risk_level: result.risk_level,
+    attack_type: result.attack_type,
+    attack_type_prediction: result.attack_type_prediction,
+    attack_type_confidence: result.attack_type_confidence,
+    probabilities: result.probabilities,
+    attack_type_probabilities: result.attack_type_probabilities ?? {},
+    models: batch.models,
+    thresholds: batch.thresholds,
+    features: {
+      binary: batch.features.binary,
+      multiclass: batch.features.multiclass,
+      // The batch envelope does not repeat per-record counts; every record
+      // carried the full schema or the engine would have rejected the batch.
+      provided: batch.features.binary,
+    },
+  }
 }

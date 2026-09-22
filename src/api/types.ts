@@ -50,6 +50,44 @@ export interface ServiceInfo {
   binary_feature_count: number
   multiclass_feature_count: number
   attack_types: string[]
+  /**
+   * Route map. Presence of `predict_batch` is how the client decides whether
+   * bulk classification is available — older engines only list the four
+   * original routes, and must still work.
+   */
+  endpoints?: Record<string, string>
+}
+
+/**
+ * One record's verdict inside a batch response.
+ *
+ * Leaner than `PredictResponse`: model, threshold and feature metadata are
+ * identical for every record, so the engine reports them once at the top
+ * level rather than repeating them N times.
+ */
+export interface BatchResult {
+  index: number
+  prediction: Prediction
+  is_attack: boolean
+  confidence: number
+  confidence_percent: number
+  risk_level: RiskLevel
+  attack_type: string
+  attack_type_prediction: string | null
+  attack_type_confidence: number | null
+  probabilities: Record<string, number>
+  /** Only present when the request asked for it. */
+  attack_type_probabilities?: Record<string, number>
+}
+
+export interface BatchResponse {
+  count: number
+  attack_count: number
+  benign_count: number
+  models: { binary: string; multiclass: string }
+  thresholds: { binary_attack: number; unknown_attack_type: number }
+  features: { binary: number; multiclass: number }
+  results: BatchResult[]
 }
 
 export interface HealthResponse {

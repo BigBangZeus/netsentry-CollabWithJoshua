@@ -28,6 +28,8 @@ interface Props {
 
   onClassifyOne: (features: Record<string, number>, source: VerdictSource) => void
   classifying: boolean
+  /** Engine offers bulk classification, so the replay chunks its requests. */
+  batched: boolean
 
   canRun: boolean
 }
@@ -48,6 +50,7 @@ export function SourcePanel({
   onStop,
   onClassifyOne,
   classifying,
+  batched,
   canRun,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
@@ -224,6 +227,19 @@ export function SourcePanel({
 
                 <span className="num" style={{ fontSize: 11, color: 'var(--bone-faint)' }}>
                   {formatCount(dispatched)} / {formatCount(total)}
+                </span>
+
+                {/* Worth surfacing: it changes request count by an order of
+                    magnitude, and explains the latency figure. */}
+                <span
+                  className="eyebrow"
+                  title={
+                    batched
+                      ? 'Engine supports /api/predict/batch — rows are sent in chunks'
+                      : 'Engine has no batch endpoint — one request per row'
+                  }
+                >
+                  {batched ? 'batched' : 'per-row'}
                 </span>
 
                 <div className="progress">

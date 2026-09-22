@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { DEFAULT_ENDPOINT, EngineError, getHealth, getServiceInfo, predict } from './api/client'
+import {
+  DEFAULT_ENDPOINT,
+  EngineError,
+  getHealth,
+  getServiceInfo,
+  predict,
+  supportsBatch,
+} from './api/client'
 import type {
   ConnectionState,
   HealthResponse,
@@ -165,7 +172,14 @@ export default function App() {
     setDispatched(0)
 
     const controller = createReplay(
-      { endpoint, rows: flows.rows, ratePerSecond: rate },
+      {
+        endpoint,
+        rows: flows.rows,
+        ratePerSecond: rate,
+        // Detected from the engine's own index, so an engine without the
+        // batch route still replays one record at a time.
+        useBatch: supportsBatch(service),
+      },
       {
         onVerdict: (row, response, latencyMs) =>
           session.recordVerdict(row, response, latencyMs, 'replay'),
@@ -178,7 +192,7 @@ export default function App() {
 
     replayRef.current = controller
     controller.start()
-  }, [endpoint, flows, rate, session])
+  }, [endpoint, flows, rate, service, session])
 
   // Rate is live-adjustable mid-run.
   useEffect(() => {
@@ -276,6 +290,7 @@ export default function App() {
             onStop={() => replayRef.current?.stop()}
             onClassifyOne={(features, source) => void classifyOne(features, source)}
             classifying={classifying}
+            batched={supportsBatch(service)}
             canRun={connection === 'online'}
           />
 
