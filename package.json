@@ -63,6 +63,8 @@
       "target": [
         "AppImage"
       ]
-    }
-  }
+    },
+    "icon": "build/icon.ico"
+  },
+  "author": "BigBangZeus"
 }
